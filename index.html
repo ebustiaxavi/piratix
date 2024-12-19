@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <title>Minijoc Personatges</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #gameArea {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #scoreBoard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 18px;
+      z-index: 10;
+    }
+    #timeLeft {
+      margin-left: 15px;
+    }
+    .character {
+      position: absolute;
+      width: 80px; /* Ajusta segons la mida de la imatge */
+      height: 80px;
+      cursor: pointer;
+      user-select: none;
+    }
+    #playAgainBtn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      padding: 10px 20px;
+      background: #ff9800;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameArea">
+    <div id="scoreBoard">
+      Punts: <span id="score">0</span>
+      <span id="timeLeft">Temps: 20</span>
+    </div>
+    <button id="playAgainBtn">Torna a jugar</button>
+  </div>
+
+  <script>
+    // ────────────────
+    // PARÀMETRES BÀSICS
+    // ────────────────
+
+    // Substitueix aquesta imatge de fons per la que vulguis.
+    const BACKGROUND_IMAGE = 'fons.jpg';
+
+    // Temps total de joc (en segons)
+    const GAME_TIME = 60;
+    // Nombre de personatges per tanda
+    const NUM_CHARACTERS = 5;
+    // Quants segons es mostren els personatges abans de la següent tanda
+    const CHARACTERS_VISIBLE_TIME = 2;
+
+    // Només el primer dona punts (P0.png).
+    const CHARACTER_IMGS = [
+      'P0.png', // dona punts
+      'P1.png',
+      'P2.png',
+      'P3.png',
+      'P4.png'
+    ];
+
+    // Afegim so quan es clique P0.png
+    const SOUND_EFFECT = 'ping.mp3';
+
+    // ─────────────────
+    // VARIABLES GLOBALS
+    // ─────────────────
+
+    let score = 0;
+    let timeLeft = GAME_TIME;
+    let waveInterval = null;       // Per moure personatges
+    let countdownInterval = null;  // Per al compte enrere
+    let isGameOver = false;
+
+    // Array temporal amb els personatges de la tanda actual
+    let currentWaveCharacters = [];
+
+    // ──────────────────
+    // REFERÈNCIES A DOM
+    // ──────────────────
+    const gameArea = document.getElementById('gameArea');
+    const scoreBoard = document.getElementById('scoreBoard');
+    let scoreEl = document.getElementById('score');
+    let timeEl = document.getElementById('timeLeft');
+    let playAgainBtn = document.getElementById('playAgainBtn');
+
+    // ──────────────────────────
+    // ESTIL: IMATGE DE FONS
+    // ──────────────────────────
+    gameArea.style.background = `url('${BACKGROUND_IMAGE}') no-repeat center center`;
+    gameArea.style.backgroundSize = 'cover';
+
+    // ─────────────────
+    // FUNCIONS PRINCIPALS
+    // ─────────────────
+
+    // Comença el joc
+    function startGame() {
+      // Reiniciem variables
+      isGameOver = false;
+      score = 0;
+      timeLeft = GAME_TIME;
+      scoreEl.textContent = score;
+      timeEl.textContent = 'Temps: ' + timeLeft;
+      playAgainBtn.style.display = 'none';
+
+      // Neteja la zona de joc (menys scoreboard i botó)
+      const children = [...gameArea.children];
+      children.forEach(el => {
+        if (el !== scoreBoard && el !== playAgainBtn) {
+          gameArea.removeChild(el);
+        }
+      });
+
+      // Iniciem compte enrere
+      startCountdown();
+      // Generem la primera tanda de personatges
+      nextWave();
+      // Iniciem moviment automàtic
+      startMovingCharacters();
+    }
+
+    // Crea una tanda de personatges que dura CHARACTERS_VISIBLE_TIME
+    function nextWave() {
+      if (isGameOver || timeLeft <= 0) return;
+
+      // Creem els personatges
+      createCharacters();
+
+      // Durada de la tanda en mil·lisegons (si queden menys segons de joc, s'escurça)
+      const waveDurationMs = Math.min(CHARACTERS_VISIBLE_TIME, timeLeft) * 1000;
+
+      // Passat waveDurationMs, eliminem la tanda i generem la següent
+      setTimeout(() => {
+        removeCurrentWave();
+        if (!isGameOver && timeLeft > 0) {
+          nextWave();
+        }
+      }, waveDurationMs);
+    }
+
+    // Crea i afegeix personatges a la zona de joc
+    function createCharacters() {
+      currentWaveCharacters = []; // netegem la tanda anterior
+      for (let i = 0; i < NUM_CHARACTERS; i++) {
+        const ch = document.createElement('img');
+        ch.src = CHARACTER_IMGS[i % CHARACTER_IMGS.length];
+        ch.classList.add('character');
+
+        // Posició aleatòria dins gameArea
+        const x = Math.random() * (gameArea.clientWidth - 80);
+        const y = Math.random() * (gameArea.clientHeight - 80);
+        ch.style.left = x + 'px';
+        ch.style.top = y + 'px';
+
+        // Només P0 dona punts i fa so
+        ch.addEventListener('click', () => {
+          if (ch.src.includes('P0.png')) {
+            score++;
+            scoreEl.textContent = score;
+
+            // Reprodueix so
+            const audio = new Audio(SOUND_EFFECT);
+            audio.play();
+          }
+        });
+
+        gameArea.appendChild(ch);
+        currentWaveCharacters.push(ch);
+      }
+    }
+
+    // Elimina la tanda actual de personatges
+    function removeCurrentWave() {
+      currentWaveCharacters.forEach(ch => {
+        if (gameArea.contains(ch)) {
+          gameArea.removeChild(ch);
+        }
+      });
+      currentWaveCharacters = [];
+    }
+
+    // Mou tots els personatges cada cert temps
+    function startMovingCharacters() {
+      waveInterval = setInterval(() => {
+        const chars = document.querySelectorAll('.character');
+        chars.forEach(moveCharacter);
+      }, CHARACTERS_VISIBLE_TIME * 1000);
+    }
+
+    // Mou un personatge a una nova posició aleatòria
+    function moveCharacter(char) {
+      if (!gameArea.contains(char)) return;
+      const newX = Math.random() * (gameArea.clientWidth - 80);
+      const newY = Math.random() * (gameArea.clientHeight - 80);
+      char.style.left = newX + 'px';
+      char.style.top = newY + 'px';
+    }
+
+    // Inicia compte enrere
+    function startCountdown() {
+      countdownInterval = setInterval(() => {
+        timeLeft--;
+        timeEl.textContent = 'Temps: ' + timeLeft;
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    // Finalitza el joc
+    function endGame() {
+      if (isGameOver) return;
+      isGameOver = true;
+
+      clearInterval(countdownInterval);
+      clearInterval(waveInterval);
+      removeCurrentWave();
+
+      // Desactiva el clic dels personatges restants
+      document.querySelectorAll('.character').forEach(ch => {
+        ch.style.pointerEvents = 'none';
+      });
+
+      playAgainBtn.style.display = 'block';
+    }
+
+    // Quan fas clic a "Torna a jugar" reinicia el joc
+    playAgainBtn.addEventListener('click', startGame);
+
+    // Comença el joc en carregar la pàgina
+    window.onload = startGame;
+  </script>
+</body>
+</html>
