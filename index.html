@@ -2,7 +2,7 @@
 <html lang="ca">
 <head>
   <meta charset="utf-8">
-  <title>Minijoc Personatges</title>
+  <title>Minijoc Personatges amb Paràmetre de Mida</title>
   <style>
     html, body {
       margin: 0;
@@ -34,8 +34,6 @@
     }
     .character {
       position: absolute;
-      width: 80px; /* Ajusta segons la mida de la imatge */
-      height: 80px;
       cursor: pointer;
       user-select: none;
     }
@@ -91,6 +89,11 @@
     // Afegim so quan es clique P0.png
     const SOUND_EFFECT = 'ping.mp3';
 
+    // Factor de mida. 1 => mida base, 2 => doble mida, etc.
+    const CHARACTER_SIZE_FACTOR = 2;
+    // Amplada i alçada base dels personatges.
+    const CHARACTER_BASE_SIZE = 80;
+
     // ─────────────────
     // VARIABLES GLOBALS
     // ─────────────────
@@ -109,9 +112,9 @@
     // ──────────────────
     const gameArea = document.getElementById('gameArea');
     const scoreBoard = document.getElementById('scoreBoard');
-    let scoreEl = document.getElementById('score');
-    let timeEl = document.getElementById('timeLeft');
-    let playAgainBtn = document.getElementById('playAgainBtn');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('timeLeft');
+    const playAgainBtn = document.getElementById('playAgainBtn');
 
     // ──────────────────────────
     // ESTIL: IMATGE DE FONS
@@ -176,9 +179,15 @@
         ch.src = CHARACTER_IMGS[i % CHARACTER_IMGS.length];
         ch.classList.add('character');
 
+        // Calculem la mida final segons el factor
+        const finalWidth = CHARACTER_BASE_SIZE * CHARACTER_SIZE_FACTOR;
+        const finalHeight = CHARACTER_BASE_SIZE * CHARACTER_SIZE_FACTOR;
+        ch.style.width = finalWidth + 'px';
+        ch.style.height = finalHeight + 'px';
+
         // Posició aleatòria dins gameArea
-        const x = Math.random() * (gameArea.clientWidth - 80);
-        const y = Math.random() * (gameArea.clientHeight - 80);
+        const x = Math.random() * (gameArea.clientWidth - finalWidth);
+        const y = Math.random() * (gameArea.clientHeight - finalHeight);
         ch.style.left = x + 'px';
         ch.style.top = y + 'px';
 
@@ -220,8 +229,13 @@
     // Mou un personatge a una nova posició aleatòria
     function moveCharacter(char) {
       if (!gameArea.contains(char)) return;
-      const newX = Math.random() * (gameArea.clientWidth - 80);
-      const newY = Math.random() * (gameArea.clientHeight - 80);
+
+      // Obtenim la mida actual del personatge per col·locar-lo correctament
+      const charWidth = parseFloat(char.style.width);
+      const charHeight = parseFloat(char.style.height);
+
+      const newX = Math.random() * (gameArea.clientWidth - charWidth);
+      const newY = Math.random() * (gameArea.clientHeight - charHeight);
       char.style.left = newX + 'px';
       char.style.top = newY + 'px';
     }
